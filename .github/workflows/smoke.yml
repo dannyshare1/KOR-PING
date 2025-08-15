@@ -1,0 +1,13 @@
+name: NAS runner smoke test
+on: workflow_dispatch
+jobs:
+  test:
+    runs-on: [self-hosted, linux, x64, hangzhou-nas]
+    steps:
+      - name: Who am I
+        run: |
+          uname -a
+          id
+          ip -br addr
+      - name: Ping out
+        run: ping -c 3 1.1.1.1 || true
