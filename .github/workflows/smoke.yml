@@ -1,12 +1,22 @@
-# .github/workflows/smoke.yml
 name: NAS runner smoke test
 on: workflow_dispatch
 jobs:
   test:
-    runs-on: [self-hosted, Linux, X64]   # ← 或者更简单：runs-on: self-hosted
+    runs-on: [self-hosted, Linux, X64]  # 或 [self-hosted, hangzhou-nas]
     steps:
-      - run: |
+      - name: Basic info
+        run: |
           echo "Hello from $(hostname)"
           uname -a
           id
-          ip -br addr
+      - name: Show network addresses (best effort)
+        run: |
+          if command -v ip >/dev/null 2>&1; then
+            ip -br addr
+          elif command -v ifconfig >/dev/null 2>&1; then
+            ifconfig
+          else
+            echo "Installing iproute2 (Debian/Ubuntu)..."
+            (apt-get update && apt-get install -y iproute2) || true
+            command -v ip >/dev/null && ip -br addr || echo "no ip/ifconfig; skip"
+          fi
