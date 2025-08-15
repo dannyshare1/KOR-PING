@@ -1,0 +1,40 @@
+name: OCI Latency (Hangzhou NAS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_ocid:
+        description: "Target OCI instance OCID"
+        required: true
+
+jobs:
+  check:
+    # 指定跑在你 NAS 上的自托管 runner（带自定义标签）
+    runs-on: [self-hosted, linux, x64, hangzhou-nas]
+
+    # 用容器帮你“带上”干净的 Python 环境（NAS 需安装 Docker）
+    container:
+      image: python:3.11
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ping & oci sdk
+        run: |
+          apt-get update
+          apt-get install -y iputils-ping
+          pip install --no-cache-dir oci
+
+      - name: Run latency monitor
+        env:
+          OCI_CLI_USER:        ${{ secrets.OCI_CLI_USER }}
+          OCI_CLI_TENANCY:     ${{ secrets.OCI_CLI_TENANCY }}
+          OCI_CLI_REGION:      ${{ secrets.OCI_CLI_REGION }}
+          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+          OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+          OCI_CLI_PASSPHRASE:  ${{ secrets.OCI_CLI_PASSPHRASE }}
+          OCI_INSTANCE_ID:     ${{ github.event.inputs.instance_ocid }}
+          LATENCY_THRESHOLD_MS: ${{ secrets.LATENCY_THRESHOLD_MS }}
+          PING_COUNT:           ${{ secrets.PING_COUNT }}
+        run: python monitor_latency.py
