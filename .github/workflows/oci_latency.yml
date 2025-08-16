@@ -4,29 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       instance_ocid:
-        description: "Target OCI instance OCID"
-        required: true
+        description: "Target OCI instance OCID (可留空，用默认)"
+        required: false
+        default: ""   # 留空表示使用默认
 
 jobs:
   check:
-    # 指定跑在你 NAS 上的自托管 runner（带自定义标签）
-    runs-on: [self-hosted, linux, x64]
-
-    # 用容器帮你“带上”干净的 Python 环境（NAS 需安装 Docker）
+    runs-on: [self-hosted, Linux, X64]
     container:
       image: python:3.11
-
+    env:
+      # 允许手动输入覆盖默认；留空则用 Secrets 中的值
+      OCI_INSTANCE_ID: ${{ github.event.inputs.instance_ocid != '' && github.event.inputs.instance_ocid || secrets.OCI_INSTANCE_ID }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install ping & oci sdk
-        run: |
+      - uses: actions/checkout@v4
+      - run: |
           apt-get update
-          apt-get install -y iputils-ping
+          apt-get install -y iputils-ping iproute2
           pip install --no-cache-dir oci
-
-      - name: Run latency monitor
+      - run: python monitor_latency.py
         env:
           OCI_CLI_USER:        ${{ secrets.OCI_CLI_USER }}
           OCI_CLI_TENANCY:     ${{ secrets.OCI_CLI_TENANCY }}
@@ -34,7 +30,4 @@ jobs:
           OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
           OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
           OCI_CLI_PASSPHRASE:  ${{ secrets.OCI_CLI_PASSPHRASE }}
-          OCI_INSTANCE_ID:     ${{ github.event.inputs.instance_ocid }}
-          LATENCY_THRESHOLD_MS: ${{ secrets.LATENCY_THRESHOLD_MS }}
-          PING_COUNT:           ${{ secrets.PING_COUNT }}
-        run: python monitor_latency.py
+          OCI_INSTANCE_ID:     ${{ env.OCI_INSTANCE_ID }}
