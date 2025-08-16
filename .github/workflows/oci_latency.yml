@@ -4,25 +4,29 @@ on:
   workflow_dispatch:
     inputs:
       instance_ocid:
-        description: "Target OCI instance OCID (可留空，用默认)"
+        description: "Target OCI instance OCID (可留空则用默认 Secret)"
         required: false
-        default: ""   # 留空表示使用默认
+        default: ""
 
 jobs:
   check:
-    runs-on: [self-hosted, Linux, X64]
-    container:
-      image: python:3.11
+    runs-on: [self-hosted, Linux, X64]   # 或 [self-hosted, hangzhou-nas]
+    timeout-minutes: 30
+
     env:
-      # 允许手动输入覆盖默认；留空则用 Secrets 中的值
+      # 允许输入覆盖默认；留空就用 Secrets 里的 OCI_INSTANCE_ID
       OCI_INSTANCE_ID: ${{ github.event.inputs.instance_ocid != '' && github.event.inputs.instance_ocid || secrets.OCI_INSTANCE_ID }}
+
     steps:
       - uses: actions/checkout@v4
-      - run: |
+
+      - name: Install deps (ping + python + SDK)
+        run: |
           apt-get update
-          apt-get install -y iputils-ping iproute2
-          pip install --no-cache-dir oci
-      - run: python monitor_latency.py
+          apt-get install -y iputils-ping iproute2 python3 python3-pip
+          pip3 install --no-cache-dir oci
+
+      - name: Run latency optimizer
         env:
           OCI_CLI_USER:        ${{ secrets.OCI_CLI_USER }}
           OCI_CLI_TENANCY:     ${{ secrets.OCI_CLI_TENANCY }}
@@ -30,4 +34,8 @@ jobs:
           OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
           OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
           OCI_CLI_PASSPHRASE:  ${{ secrets.OCI_CLI_PASSPHRASE }}
-          OCI_INSTANCE_ID:     ${{ env.OCI_INSTANCE_ID }}
+          LATENCY_THRESHOLD_MS: ${{ secrets.LATENCY_THRESHOLD_MS }}
+          PING_COUNT:           ${{ secrets.PING_COUNT }}
+          MAX_SWITCHES:         ${{ secrets.MAX_SWITCHES }}
+          OCI_INSTANCE_ID:      ${{ env.OCI_INSTANCE_ID }}
+        run: python3 monitor_latency.py
