@@ -10,7 +10,7 @@ on:
 jobs:
   check:
     # 指定跑在你 NAS 上的自托管 runner（带自定义标签）
-    runs-on: [self-hosted, linux, x64, hangzhou-nas]
+    runs-on: [self-hosted, linux, x64]
 
     # 用容器帮你“带上”干净的 Python 环境（NAS 需安装 Docker）
     container:
