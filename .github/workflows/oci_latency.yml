@@ -58,6 +58,19 @@ jobs:
           apt-get install -y iputils-ping iproute2 python3 python3-pip
           pip3 install --no-cache-dir oci
 
+      - name: Verify OCI key & fingerprint
+        run: |
+          apt-get update && apt-get install -y openssl
+          cat > /tmp/oci_key.pem <<'PEM'
+            ${{ secrets.OCI_CLI_KEY_CONTENT }}
+            PEM
+          chmod 600 /tmp/oci_key.pem
+          echo "Provided fingerprint:  ${{ secrets.OCI_CLI_FINGERPRINT }}"
+          echo -n "Computed fingerprint: "
+          # 从私钥推导公钥 -> 计算 MD5 指纹（带冒号）
+          openssl rsa -pubout -in /tmp/oci_key.pem -outform DER 2>/dev/null \
+            | openssl dgst -md5 -c | awk '{print $2}'
+
       - name: Run latency optimizer
         env:
           OCI_CLI_USER:        ${{ secrets.OCI_CLI_USER }}
