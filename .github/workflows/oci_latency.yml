@@ -114,8 +114,18 @@ jobs:
           OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
           OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
           OCI_CLI_PASSPHRASE:  ${{ secrets.OCI_CLI_PASSPHRASE }}
-          LATENCY_THRESHOLD_MS: ${{ secrets.LATENCY_THRESHOLD_MS }}
-          PING_COUNT:           ${{ secrets.PING_COUNT }}
-          MAX_SWITCHES:         ${{ secrets.MAX_SWITCHES }}
-          OCI_INSTANCE_ID:      ${{ env.OCI_INSTANCE_ID }}
+
+          # 行为参数（可不设）
+          LATENCY_THRESHOLD_MS: ${{ (secrets.LATENCY_THRESHOLD_MS != '' && secrets.LATENCY_THRESHOLD_MS) || '80' }}
+          PING_COUNT:           ${{ (secrets.PING_COUNT           != '' && secrets.PING_COUNT)           || '3'  }}
+          MAX_SWITCHES:         ${{ (secrets.MAX_SWITCHES         != '' && secrets.MAX_SWITCHES)         || '10' }}
+          SLEEP_BETWEEN_SWITCH_S: ${{ (secrets.SLEEP_BETWEEN_SWITCH_S != '' && secrets.SLEEP_BETWEEN_SWITCH_S) || '6' }}
+          TCP_FALLBACK_PORT:    ${{ (secrets.TCP_FALLBACK_PORT    != '' && secrets.TCP_FALLBACK_PORT)    || '22' }}
+
+          # Telegram
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID:   ${{ secrets.TG_CHAT_ID }}
+
+          # 实例 OCID（可用默认 Secret，也可用 inputs 覆盖）
+          OCI_INSTANCE_ID: ${{ env.OCI_INSTANCE_ID }}
         run: python3 monitor_latency.py
