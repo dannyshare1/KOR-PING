@@ -3,6 +3,7 @@
 
 import os, re, time, sys, subprocess, socket, datetime, json
 import urllib.request, urllib.parse, urllib.error
+from typing import Optional
 import oci
 
 def log(msg): print(msg, flush=True)
@@ -30,7 +31,7 @@ def tcp_ping(ip, port=22, timeout=2):
         return False
 
 # ICMP 平均延迟
-def measure_latency(ip: str, count: int = 5, timeout_s: int = 2) -> float | None:
+def measure_latency(ip: str, count: int = 5, timeout_s: int = 2) -> Optional[float]:
     try:
         # -n 纯数字；-W 超时秒；-c 次数
         cmd = ["ping", "-n", "-W", str(timeout_s), "-c", str(count), ip]
