@@ -58,23 +58,22 @@ jobs:
           apt-get install -y iputils-ping iproute2 python3 python3-pip
           pip3 install --no-cache-dir oci
 
-      - name: Verify OCI key file & fingerprint
+      - name: Verify OCI key & fingerprint
         run: |
           apt-get update && apt-get install -y openssl
-          # 写入你在 Secrets 里的私钥
+          # 把 Secrets 里的私钥写到文件
           cat > /tmp/oci_key.pem <<'PEM'
             ${{ secrets.OCI_CLI_KEY_CONTENT }}
             PEM
           chmod 600 /tmp/oci_key.pem
-          echo -n "Key header: "; head -n1 /tmp/oci_key.pem
 
-          # 1) 如果是 OpenSSH/ed25519，直接报错
+          echo -n "Key header: "; head -n1 /tmp/oci_key.pem
           if head -n1 /tmp/oci_key.pem | grep -q 'OPENSSH'; then
-            echo "❌ 你填的是 SSH 私钥（OpenSSH），不是 OCI API 的 RSA 私钥。请去 OCI 控制台 User settings → API Keys → Add API Key → Generate，复制下载的 RSA 私钥 PEM 到 OCI_CLI_KEY_CONTENT。"
+            echo "❌ 你填的是 SSH 私钥（OpenSSH/ed25519），不是 OCI API 的 RSA 私钥。请用控制台生成的私钥（BEGIN PRIVATE KEY）。"
             exit 2
           fi
 
-          # 2) 计算该私钥对应的指纹（MD5，冒号分隔）
+          # 从私钥导出公钥并计算 MD5 指纹（冒号分隔）
           FP=$({ openssl rsa  -pubout -in /tmp/oci_key.pem -outform DER 2>/dev/null \
               || openssl pkey -pubout -in /tmp/oci_key.pem -outform DER 2>/dev/null; } \
               | openssl dgst -md5 -c | awk '{print $2}')
@@ -82,7 +81,7 @@ jobs:
           echo "Computed fingerprint:  $FP"
 
           if [ "$FP" != "${{ secrets.OCI_CLI_FINGERPRINT }}" ]; then
-            echo "❌ 指纹不匹配。请以“OCI 控制台 API Keys 页面显示的那串指纹”为准，或重新生成 API Key Pair 并同步更新私钥与指纹。"
+            echo "❌ 指纹与这把私钥不匹配。请以控制台 API Keys 页显示的指纹为准，或删除旧 Key 重新 Generate 一套并同时更新指纹与私钥。"
             exit 2
           fi
 
