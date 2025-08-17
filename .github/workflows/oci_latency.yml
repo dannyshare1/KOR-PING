@@ -33,15 +33,24 @@ jobs:
           echo "== DNS =="
           nslookup github.com || getent hosts github.com || true
 
-      - name: Checkout
+      - name: Force SSH over 443
+        run: |
+          mkdir -p ~/.ssh
+          printf "%s\n" \
+            "Host github.com" \
+            "  HostName ssh.github.com" \
+            "  Port 443" \
+            "  User git" >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+          # 预置 known_hosts，避免握手卡住
+          ssh-keyscan -p 443 ssh.github.com >> ~/.ssh/known_hosts
+
+      - name: Checkout via SSH
         uses: actions/checkout@v4
         with:
-          # 如你启用了子模块，可再加 submodules: recursive
+          ssh-key: ${{ secrets.PKEY }}
+          persist-credentials: false
           fetch-depth: 1
-        env:
-          # 打开详细日志，若再次失败便于定位
-          GIT_CURL_VERBOSE: "1"
-          GIT_TRACE_CURL: "1"
 
       - name: Install deps (ping + python + SDK)
         run: |
