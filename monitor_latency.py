@@ -7,6 +7,20 @@ import oci
 def log(msg):
     print(msg, flush=True)
 
+def env_float(name, default):
+    v = os.environ.get(name, '')
+    try:
+        return float(v) if str(v).strip() != '' else default
+    except Exception:
+        return default
+
+def env_int(name, default):
+    v = os.environ.get(name, '')
+    try:
+        return int(v) if str(v).strip() != '' else default
+    except Exception:
+        return default
+
 def measure_latency(ip, count=5, timeout_s=2):
     """用 ping 测平均延迟(ms)，不可达返回 None。"""
     try:
@@ -123,10 +137,10 @@ def main():
     vnic_id = pick_primary_vnic(compute, net, comp, instance_id)
     primary_private_ip_id = pick_primary_private_ip(net, vnic_id)
 
-    threshold     = float(os.environ.get("LATENCY_THRESHOLD_MS", "80"))
-    ping_count    = int(os.environ.get("PING_COUNT", "5"))
-    per_pkt_tout  = int(os.environ.get("PING_TIMEOUT_S", "2"))
-    max_switches  = int(os.environ.get("MAX_SWITCHES", "25"))
+    threshold     = env_float("LATENCY_THRESHOLD_MS", 80.0)
+    ping_count    = env_int("PING_COUNT", 5)
+    per_pkt_tout  = env_int("PING_TIMEOUT_S", 2)
+    max_switches  = env_int("MAX_SWITCHES", 25)
 
     pub = ensure_ephemeral(net, comp, primary_private_ip_id)
     current_ip = pub.ip_address
