@@ -18,7 +18,30 @@ jobs:
       OCI_INSTANCE_ID: ${{ github.event.inputs.instance_ocid != '' && github.event.inputs.instance_ocid || secrets.OCI_INSTANCE_ID }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Network warm-up
+        run: |
+          apt-get update
+          apt-get install -y ca-certificates curl dnsutils git
+          update-ca-certificates || true
+          # 有些环境 HTTP/2 + GnuTLS 不稳，强制用 HTTP/1.1
+          git config --global http.version HTTP/1.1
+          # 先探测一遍，便于快速失败时定位
+          echo "== curl github.com =="
+          curl -I --max-time 10 https://github.com || true
+          echo "== curl api.github.com =="
+          curl -I --max-time 10 https://api.github.com || true
+          echo "== DNS =="
+          nslookup github.com || getent hosts github.com || true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 如你启用了子模块，可再加 submodules: recursive
+          fetch-depth: 1
+        env:
+          # 打开详细日志，若再次失败便于定位
+          GIT_CURL_VERBOSE: "1"
+          GIT_TRACE_CURL: "1"
 
       - name: Install deps (ping + python + SDK)
         run: |
