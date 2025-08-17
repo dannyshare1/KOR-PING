@@ -71,6 +71,31 @@ jobs:
           openssl rsa -pubout -in /tmp/oci_key.pem -outform DER 2>/dev/null \
             | openssl dgst -md5 -c | awk '{print $2}'
 
+      - name: Test Identity auth (get_user)
+        run: |
+          python3 - <<'PY'
+          import os, oci
+          cfg = {
+            "user": os.environ["OCI_CLI_USER"],
+            "tenancy": os.environ["OCI_CLI_TENANCY"],
+            "region": os.environ["OCI_CLI_REGION"],
+            "fingerprint": os.environ["OCI_CLI_FINGERPRINT"],
+            "key_file": "/tmp/oci_key.pem",
+          }
+          try:
+            ic = oci.identity.IdentityClient(cfg)
+            u  = ic.get_user(os.environ["OCI_CLI_USER"]).data
+            print("✅ Auth OK. User:", u.name, u.id)
+          except Exception as e:
+            print("❌ Identity auth failed:", e)
+            raise
+          PY
+        env:
+          OCI_CLI_USER:        ${{ secrets.OCI_CLI_USER }}
+          OCI_CLI_TENANCY:     ${{ secrets.OCI_CLI_TENANCY }}
+          OCI_CLI_REGION:      ${{ secrets.OCI_CLI_REGION }}
+          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+
       - name: Run latency optimizer
         env:
           OCI_CLI_USER:        ${{ secrets.OCI_CLI_USER }}
