@@ -58,18 +58,33 @@ jobs:
           apt-get install -y iputils-ping iproute2 python3 python3-pip
           pip3 install --no-cache-dir oci
 
-      - name: Verify OCI key & fingerprint
+      - name: Verify OCI key file & fingerprint
         run: |
           apt-get update && apt-get install -y openssl
+          # 写入你在 Secrets 里的私钥
           cat > /tmp/oci_key.pem <<'PEM'
             ${{ secrets.OCI_CLI_KEY_CONTENT }}
             PEM
           chmod 600 /tmp/oci_key.pem
+          echo -n "Key header: "; head -n1 /tmp/oci_key.pem
+
+          # 1) 如果是 OpenSSH/ed25519，直接报错
+          if head -n1 /tmp/oci_key.pem | grep -q 'OPENSSH'; then
+            echo "❌ 你填的是 SSH 私钥（OpenSSH），不是 OCI API 的 RSA 私钥。请去 OCI 控制台 User settings → API Keys → Add API Key → Generate，复制下载的 RSA 私钥 PEM 到 OCI_CLI_KEY_CONTENT。"
+            exit 2
+          fi
+
+          # 2) 计算该私钥对应的指纹（MD5，冒号分隔）
+          FP=$({ openssl rsa  -pubout -in /tmp/oci_key.pem -outform DER 2>/dev/null \
+              || openssl pkey -pubout -in /tmp/oci_key.pem -outform DER 2>/dev/null; } \
+              | openssl dgst -md5 -c | awk '{print $2}')
           echo "Provided fingerprint:  ${{ secrets.OCI_CLI_FINGERPRINT }}"
-          echo -n "Computed fingerprint: "
-          # 从私钥推导公钥 -> 计算 MD5 指纹（带冒号）
-          openssl rsa -pubout -in /tmp/oci_key.pem -outform DER 2>/dev/null \
-            | openssl dgst -md5 -c | awk '{print $2}'
+          echo "Computed fingerprint:  $FP"
+
+          if [ "$FP" != "${{ secrets.OCI_CLI_FINGERPRINT }}" ]; then
+            echo "❌ 指纹不匹配。请以“OCI 控制台 API Keys 页面显示的那串指纹”为准，或重新生成 API Key Pair 并同步更新私钥与指纹。"
+            exit 2
+          fi
 
       - name: Test Identity auth (get_user)
         run: |
@@ -82,13 +97,9 @@ jobs:
             "fingerprint": os.environ["OCI_CLI_FINGERPRINT"],
             "key_file": "/tmp/oci_key.pem",
           }
-          try:
-            ic = oci.identity.IdentityClient(cfg)
-            u  = ic.get_user(os.environ["OCI_CLI_USER"]).data
-            print("✅ Auth OK. User:", u.name, u.id)
-          except Exception as e:
-            print("❌ Identity auth failed:", e)
-            raise
+          ic = oci.identity.IdentityClient(cfg)
+          u  = ic.get_user(os.environ["OCI_CLI_USER"]).data
+          print("✅ Auth OK. User:", u.name, u.id)
           PY
         env:
           OCI_CLI_USER:        ${{ secrets.OCI_CLI_USER }}
